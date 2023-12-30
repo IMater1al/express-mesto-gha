@@ -16,6 +16,11 @@ app.use((req, res, next) => {
 
   next();
 });
+
+app.all('/*', (req, res) => {
+  res.status(404).send({ message: 'Такого пути не существует' });
+});
+
 app.use('/users', require('./routes/users'));
 app.use('/cards', require('./routes/cards'));
 

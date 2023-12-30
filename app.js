@@ -17,12 +17,12 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/users', require('./routes/users'));
+app.use('/cards', require('./routes/cards'));
+
 app.all('/*', (req, res) => {
   res.status(404).send({ message: 'Такого пути не существует' });
 });
-
-app.use('/users', require('./routes/users'));
-app.use('/cards', require('./routes/cards'));
 
 app.listen(PORT, () => {
   console.log(`Express app Listening on port ${PORT}`);

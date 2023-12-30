@@ -55,3 +55,18 @@ module.exports.dislikeCard = (req, res) => {
       return res.status(500).send({ message: err.message });
     });
 };
+
+module.exports.deleteCard = (req, res) => {
+  Card.findByIdAndDelete(req.params.cardId)
+    .then((card) => {
+      if (card) return res.send(card);
+      return res
+        .status(404)
+        .send({ message: 'Карточка по указанному _id не найдена' });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError')
+        return res.status(400).send({ message: 'Введите валидный _id' });
+      return res.status(500).send({ message: err.message });
+    });
+};

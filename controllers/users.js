@@ -9,20 +9,29 @@ module.exports.getUsers = (req, res) => {
 module.exports.getUser = (req, res) => {
   const { id } = req.params;
 
-  if (id.match(/^[0-9a-fA-F]{24}$/)) {
-    User.findById(id)
-      .then((user) => res.send(user))
-      .catch((err) => res.status(500).send({ message: err.message }));
-  } else {
-    res.send({ message: 'Неправильный id' });
-  }
+  User.findById(id)
+    .then((user) => {
+      if (user) return res.send(user);
+      return res
+        .status(404)
+        .send({ message: 'Пользователь по указанному _id не найден' });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError')
+        return res.status(400).send({ message: 'Введите валидный _id' });
+      return res.status(500).send({ message: err.message });
+    });
 };
 
 module.exports.createUser = (req, res) => {
   const { name, about, avatar } = req.body;
   User.create({ name, about, avatar })
-    .then((user) => res.send(user))
-    .catch((err) => res.status(500).send({ message: err.message }));
+    .then((user) => res.status(201).send(user))
+    .catch((err) => {
+      if (err.name === 'ValidationError')
+        return res.status(400).send({ message: err.message });
+      return res.status(500).send({ message: err.message });
+    });
 };
 
 module.exports.updateUserInfo = (req, res) => {
@@ -33,8 +42,19 @@ module.exports.updateUserInfo = (req, res) => {
     { name, about },
     { new: true, runValidators: true },
   )
-    .then((user) => res.send({ data: user }))
-    .catch((err) => res.send({ message: err.message }));
+    .then((user) => {
+      if (user) return res.send(user);
+      return res
+        .status(404)
+        .send({ message: 'Пользователь по указанному _id не найден' });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError')
+        return res.status(400).send({ message: 'Введите валидный _id' });
+      if (err.name === 'ValidationError')
+        return res.status(400).send({ message: err.message });
+      return res.status(500).send({ message: err.message });
+    });
 };
 
 module.exports.updateUserAvatar = (req, res) => {
@@ -44,6 +64,17 @@ module.exports.updateUserAvatar = (req, res) => {
     { avatar },
     { new: true, runValidators: true },
   )
-    .then((user) => res.send({ data: user }))
-    .catch((err) => res.send({ message: err.message }));
+    .then((user) => {
+      if (user) return res.send(user);
+      return res
+        .status(404)
+        .send({ message: 'Пользователь по указанному _id не найден' });
+    })
+    .catch((err) => {
+      if (err.name === 'CastError')
+        return res.status(400).send({ message: 'Введите валидный _id' });
+      if (err.name === 'ValidationError')
+        return res.status(400).send({ message: err.message });
+      return res.status(500).send({ message: err.message });
+    });
 };

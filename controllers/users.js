@@ -1,36 +1,41 @@
 const User = require('../models/user');
+const {
+  SERVER_ERROR, NOT_FOUND, BAD_REQUEST, CREATED,
+} = require('../utils/constants');
 
 module.exports.getUsers = (req, res) => {
   User.find({})
     .then((users) => res.send(users))
-    .catch((err) => res.status(500).send({ message: err.message }));
+    .catch(() => res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' }));
 };
 
-module.exports.getUser = (req, res) => {
+module.exports.getUser = async (req, res) => {
   const { id } = req.params;
 
   User.findById(id)
     .then((user) => {
       if (user) return res.send(user);
       return res
-        .status(404)
+        .status(NOT_FOUND)
         .send({ message: 'Пользователь по указанному _id не найден' });
     })
     .catch((err) => {
-      if (err.name === 'CastError')
-        return res.status(400).send({ message: 'Введите валидный _id' });
-      return res.status(500).send({ message: err.message });
+      if (err.name === 'CastError') {
+        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
+      }
+      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
     });
 };
 
 module.exports.createUser = (req, res) => {
   const { name, about, avatar } = req.body;
   User.create({ name, about, avatar })
-    .then((user) => res.status(201).send(user))
+    .then((user) => res.status(CREATED).send(user))
     .catch((err) => {
-      if (err.name === 'ValidationError')
-        return res.status(400).send({ message: err.message });
-      return res.status(500).send({ message: err.message });
+      if (err.name === 'ValidationError') {
+        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
+      }
+      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
     });
 };
 
@@ -45,15 +50,17 @@ module.exports.updateUserInfo = (req, res) => {
     .then((user) => {
       if (user) return res.send(user);
       return res
-        .status(404)
+        .status(NOT_FOUND)
         .send({ message: 'Пользователь по указанному _id не найден' });
     })
     .catch((err) => {
-      if (err.name === 'CastError')
-        return res.status(400).send({ message: 'Введите валидный _id' });
-      if (err.name === 'ValidationError')
-        return res.status(400).send({ message: err.message });
-      return res.status(500).send({ message: err.message });
+      if (err.name === 'CastError') {
+        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
+      }
+      if (err.name === 'ValidationError') {
+        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
+      }
+      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
     });
 };
 
@@ -67,14 +74,16 @@ module.exports.updateUserAvatar = (req, res) => {
     .then((user) => {
       if (user) return res.send(user);
       return res
-        .status(404)
+        .status(NOT_FOUND)
         .send({ message: 'Пользователь по указанному _id не найден' });
     })
     .catch((err) => {
-      if (err.name === 'CastError')
-        return res.status(400).send({ message: 'Введите валидный _id' });
-      if (err.name === 'ValidationError')
-        return res.status(400).send({ message: err.message });
-      return res.status(500).send({ message: err.message });
+      if (err.name === 'CastError') {
+        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
+      }
+      if (err.name === 'ValidationError') {
+        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
+      }
+      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
     });
 };

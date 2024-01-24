@@ -1,16 +1,20 @@
+const BadRequestError = require('../errors/BadRequestError');
+const NotFoundError = require('../errors/NotFoundError');
+const ServerError = require('../errors/ServerError');
+const UnauthorizedError = require('../errors/UnauthorizedError');
 const Card = require('../models/card');
 const {
-  SERVER_ERROR, NOT_FOUND, BAD_REQUEST, CREATED, NOT_AUTHORIZED,
+  BAD_REQUEST, CREATED,
 } = require('../utils/constants');
 
-module.exports.getCards = (req, res) => {
+module.exports.getCards = (req, res, next) => {
   Card.find({})
     .populate('owner')
     .then((cards) => res.send(cards))
-    .catch(() => res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' }));
+    .catch(() => next(new ServerError('Произошла ошибка сервера')));
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   Card.create({ name, link, owner: req.user._id })
     .then((card) => res.status(CREATED).send(card))
@@ -18,11 +22,11 @@ module.exports.createCard = (req, res) => {
       if (err.name === 'ValidationError') {
         return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
       }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+      return next(new ServerError('Произошла ошибка сервера'));
     });
 };
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
@@ -30,19 +34,15 @@ module.exports.likeCard = (req, res) => {
   )
     .then((card) => {
       if (card) return res.send(card);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Карточка по указанному _id не найдена' });
+      return next(new NotFoundError('Карточка по указанному _id не найдена'));
     })
     .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+      if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
+      return next(new ServerError('Произошла ошибка сервера'));
     });
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
@@ -50,35 +50,26 @@ module.exports.dislikeCard = (req, res) => {
   )
     .then((card) => {
       if (card) return res.send(card);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Карточка по указанному _id не найдена' });
+      return next(new NotFoundError('Карточка по указанному _id не найдена'));
     })
     .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+      if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
+      return next(new ServerError('Произошла ошибка сервера'));
     });
 };
 
-module.exports.deleteCard = (req, res) => {
+module.exports.deleteCard = (req, res, next) => {
   const currentUserId = req.user._id;
 
   Card.findById(req.params.cardId).then((card) => {
-    if (!card) {
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Карточка по указанному _id не найдена' });
-    }
+    if (!card) return next(new NotFoundError('Карточка по указанному _id не найдена'));
 
-    if (card.owner.toString() !== currentUserId) return res.status(NOT_AUTHORIZED).send({ message: 'Нет доступа' });
+    if (card.owner.toString() !== currentUserId) return next(new UnauthorizedError('Нет доступа'));
 
     return Card.findByIdAndDelete(req.params.cardId).then((deletedCard) => res.send(deletedCard));
   }).catch((err) => {
-    if (err.name === 'CastError') {
-      return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-    }
-    return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+    if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
+
+    return next(new ServerError('Произошла ошибка сервера'));
   });
 };

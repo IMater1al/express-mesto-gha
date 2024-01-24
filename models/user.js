@@ -36,6 +36,8 @@ const userSchema = new mongoose.Schema(
 
           return isUnique && isEmail;
         },
+        message: 'Передан некорректный email',
+
       },
       required: true,
     },

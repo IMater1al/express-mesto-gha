@@ -1,69 +1,66 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
-const {
-  SERVER_ERROR, NOT_FOUND, BAD_REQUEST, CREATED, NOT_AUTHORIZED,
-} = require('../utils/constants');
+const { BAD_REQUEST, CREATED } = require('../utils/constants');
 const { getJwtToken } = require('../utils/jwt');
+const ServerError = require('../errors/ServerError');
+const NotFoundError = require('../errors/NotFoundError');
+const UnauthorizedError = require('../errors/UnauthorizedError');
+const BadRequestError = require('../errors/BadRequestError');
 
-module.exports.getUsers = (req, res) => {
+const { SALT_ROUNDS = 10 } = process.env;
+
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.send(users))
-    .catch(() => res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' }));
+    .catch(() => next(new ServerError('Произошла ошибка сервера')));
 };
 
-module.exports.getUser = async (req, res) => {
+module.exports.getUser = (req, res, next) => {
   const { id } = req.params;
 
   User.findById(id)
     .then((user) => {
       if (user) return res.send(user);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Пользователь по указанному _id не найден' });
+      return next(new NotFoundError('Пользователь по указанному _id не найден'));
     })
     .catch((err) => {
       if (err.name === 'CastError') {
         return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
       }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+      return next(new ServerError('Произошла ошибка сервера'));
     });
 };
 
-module.exports.getCurrentUser = (req, res) => {
+module.exports.getCurrentUser = (req, res, next) => {
   const currentUserId = req.user._id;
   User.findById(currentUserId)
-    .then((user) => {
-      if (user) return res.send(user);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Пользователь по указанному _id не найден' });
-    })
+    .then((user) => res.send(user))
     .catch((err) => {
       if (err.name === 'CastError') {
         return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
       }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+      return next(new ServerError('Произошла ошибка сервера'));
     });
 };
 
-module.exports.createUser = (req, res) => {
+module.exports.createUser = (req, res, next) => {
   const {
     name, about, avatar, email, password,
   } = req.body;
 
-  bcrypt.hash(password, 10).then((hash) => User.create({
-    name, about, avatar, email, password: hash,
-  }))
-    .then((user) => res.status(CREATED).send(user))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
-    });
+  User.findOne({ email }).then((user) => {
+    if (user) return next(new BadRequestError('Такой пользователь уже существует'));
+
+    return bcrypt.hash(password, SALT_ROUNDS)
+      .then((hash) => User.create({
+        name, about, avatar, email, password: hash,
+      }))
+      .then((newUser) => res.status(CREATED).send(newUser));
+  })
+    .catch(() => next(new ServerError('Произошла ошибка сервера')));
 };
 
-module.exports.updateUserInfo = (req, res) => {
+module.exports.updateUserInfo = (req, res, next) => {
   const { name, about } = req.body;
 
   User.findByIdAndUpdate(
@@ -71,60 +68,34 @@ module.exports.updateUserInfo = (req, res) => {
     { name, about },
     { new: true, runValidators: true },
   )
-    .then((user) => {
-      if (user) return res.send(user);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Пользователь по указанному _id не найден' });
-    })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      if (err.name === 'ValidationError') {
-        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
-    });
+    .then((user) => res.send(user))
+    .catch(() => next(new ServerError('Произошла ошибка сервера')));
 };
 
-module.exports.updateUserAvatar = (req, res) => {
+module.exports.updateUserAvatar = (req, res, next) => {
   const { avatar } = req.body;
   User.findByIdAndUpdate(
     req.user._id,
     { avatar },
     { new: true, runValidators: true },
   )
-    .then((user) => {
-      if (user) return res.send(user);
-      return res
-        .status(NOT_FOUND)
-        .send({ message: 'Пользователь по указанному _id не найден' });
-    })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      if (err.name === 'ValidationError') {
-        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
-    });
+    .then((user) => res.send(user))
+    .catch(() => next(new ServerError('Произошла ошибка сервера')));
 };
 
-module.exports.login = (req, res) => {
+module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
 
-  return User.findUserByCredentials(email, password).then((user) => {
+  User.findUserByCredentials(email, password).then((user) => {
     const token = getJwtToken({ _id: user._id });
 
     res.cookie('jwt', token, {
-      maxAge: 604800,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 дней жизнь куков
       httpOnly: true,
       sameSite: true,
     });
 
     res.send({ token });
   })
-    .catch((err) => res.status(NOT_AUTHORIZED).send({ message: err.message }));
+    .catch((err) => next(new UnauthorizedError(err.message)));
 };

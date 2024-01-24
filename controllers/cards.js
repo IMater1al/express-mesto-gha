@@ -1,6 +1,6 @@
 const Card = require('../models/card');
 const {
-  SERVER_ERROR, NOT_FOUND, BAD_REQUEST, CREATED,
+  SERVER_ERROR, NOT_FOUND, BAD_REQUEST, CREATED, NOT_AUTHORIZED,
 } = require('../utils/constants');
 
 module.exports.getCards = (req, res) => {
@@ -63,17 +63,22 @@ module.exports.dislikeCard = (req, res) => {
 };
 
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndDelete(req.params.cardId)
-    .then((card) => {
-      if (card) return res.send(card);
+  const currentUserId = req.user._id;
+
+  Card.findById(req.params.cardId).then((card) => {
+    if (!card) {
       return res
         .status(NOT_FOUND)
         .send({ message: 'Карточка по указанному _id не найдена' });
-    })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
-    });
+    }
+
+    if (card.owner.toString() !== currentUserId) return res.status(NOT_AUTHORIZED).send({ message: 'Нет доступа' });
+
+    return Card.findByIdAndDelete(req.params.cardId).then((deletedCard) => res.send(deletedCard));
+  }).catch((err) => {
+    if (err.name === 'CastError') {
+      return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
+    }
+    return res.status(SERVER_ERROR).send({ message: 'Произошла Ошибка' });
+  });
 };

@@ -16,3 +16,4 @@ node_modules
 
 # Ignore files
 .prettierignore
+.env

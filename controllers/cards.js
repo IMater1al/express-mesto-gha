@@ -1,7 +1,7 @@
 const BadRequestError = require('../errors/BadRequestError');
+const ForbiddenError = require('../errors/ForbiddenError');
 const NotFoundError = require('../errors/NotFoundError');
 const ServerError = require('../errors/ServerError');
-const UnauthorizedError = require('../errors/UnauthorizedError');
 const Card = require('../models/card');
 const {
   BAD_REQUEST, CREATED,
@@ -64,7 +64,7 @@ module.exports.deleteCard = (req, res, next) => {
   Card.findById(req.params.cardId).then((card) => {
     if (!card) return next(new NotFoundError('Карточка по указанному _id не найдена'));
 
-    if (card.owner.toString() !== currentUserId) return next(new UnauthorizedError('Нет доступа'));
+    if (card.owner.toString() !== currentUserId) return next(new ForbiddenError('Нет доступа'));
 
     return Card.findByIdAndDelete(req.params.cardId).then((deletedCard) => res.send(deletedCard));
   }).catch((err) => {

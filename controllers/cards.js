@@ -1,29 +1,20 @@
-const BadRequestError = require('../errors/BadRequestError');
 const ForbiddenError = require('../errors/ForbiddenError');
 const NotFoundError = require('../errors/NotFoundError');
-const ServerError = require('../errors/ServerError');
 const Card = require('../models/card');
-const {
-  BAD_REQUEST, CREATED,
-} = require('../utils/constants');
+const { CREATED } = require('../utils/constants');
 
 module.exports.getCards = (req, res, next) => {
   Card.find({})
     .populate('owner')
     .then((cards) => res.send(cards))
-    .catch(() => next(new ServerError('Произошла ошибка сервера')));
+    .catch((err) => next(err));
 };
 
 module.exports.createCard = (req, res, next) => {
   const { name, link } = req.body;
   Card.create({ name, link, owner: req.user._id })
     .then((card) => res.status(CREATED).send(card))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(BAD_REQUEST).send({ message: 'Ошибка валидации' });
-      }
-      return next(new ServerError('Произошла ошибка сервера'));
-    });
+    .catch((err) => next(err));
 };
 
 module.exports.likeCard = (req, res, next) => {
@@ -36,10 +27,7 @@ module.exports.likeCard = (req, res, next) => {
       if (card) return res.send(card);
       return next(new NotFoundError('Карточка по указанному _id не найдена'));
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
-      return next(new ServerError('Произошла ошибка сервера'));
-    });
+    .catch((err) => next(err));
 };
 
 module.exports.dislikeCard = (req, res, next) => {
@@ -52,10 +40,7 @@ module.exports.dislikeCard = (req, res, next) => {
       if (card) return res.send(card);
       return next(new NotFoundError('Карточка по указанному _id не найдена'));
     })
-    .catch((err) => {
-      if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
-      return next(new ServerError('Произошла ошибка сервера'));
-    });
+    .catch((err) => next(err));
 };
 
 module.exports.deleteCard = (req, res, next) => {
@@ -66,10 +51,6 @@ module.exports.deleteCard = (req, res, next) => {
 
     if (card.owner.toString() !== currentUserId) return next(new ForbiddenError('Нет доступа'));
 
-    return Card.findByIdAndDelete(req.params.cardId).then((deletedCard) => res.send(deletedCard));
-  }).catch((err) => {
-    if (err.name === 'CastError') return next(new BadRequestError('Введите валидный _id'));
-
-    return next(new ServerError('Произошла ошибка сервера'));
-  });
+    return card.deleteOne().then((deletedCard) => res.send(deletedCard));
+  }).catch((err) => next(err));
 };

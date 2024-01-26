@@ -1,10 +1,8 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
-const { BAD_REQUEST, CREATED } = require('../utils/constants');
+const { CREATED } = require('../utils/constants');
 const { getJwtToken } = require('../utils/jwt');
-const ServerError = require('../errors/ServerError');
 const NotFoundError = require('../errors/NotFoundError');
-const UnauthorizedError = require('../errors/UnauthorizedError');
 const ConflictError = require('../errors/ConflictError');
 
 const { SALT_ROUNDS = 10 } = process.env;
@@ -12,7 +10,7 @@ const { SALT_ROUNDS = 10 } = process.env;
 module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => res.send(users))
-    .catch(() => next(new ServerError('Произошла ошибка сервера')));
+    .catch((err) => next(err));
 };
 
 module.exports.getUser = (req, res, next) => {
@@ -23,19 +21,14 @@ module.exports.getUser = (req, res, next) => {
       if (user) return res.send(user);
       return next(new NotFoundError('Пользователь по указанному _id не найден'));
     })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        return res.status(BAD_REQUEST).send({ message: 'Введите валидный _id' });
-      }
-      return next(new ServerError('Произошла ошибка сервера'));
-    });
+    .catch((err) => next(err));
 };
 
 module.exports.getCurrentUser = (req, res, next) => {
   const currentUserId = req.user._id;
   User.findById(currentUserId)
     .then((user) => res.send(user))
-    .catch(() => next(new ServerError('Произошла ошибка сервера')));
+    .catch((err) => next(err));
 };
 
 module.exports.createUser = (req, res, next) => {
@@ -43,21 +36,19 @@ module.exports.createUser = (req, res, next) => {
     name, about, avatar, email, password,
   } = req.body;
 
-  User.findOne({ email }).then((user) => {
-    if (user) return next(new ConflictError('Такой пользователь уже существует'));
-
-    return bcrypt.hash(password, SALT_ROUNDS)
-      .then((hash) => User.create({
-        name, about, avatar, email, password: hash,
-      }))
-      .then((newUser) => res.status(CREATED).send({
-        name: newUser.name,
-        about: newUser.about,
-        avatar: newUser.avatar,
-        email: newUser.email,
-      }));
-  })
-    .catch((err) => next(new ServerError(err.message)));
+  return bcrypt.hash(password, SALT_ROUNDS)
+    .then((hash) => User.create({
+      name, about, avatar, email, password: hash,
+    }).then((newUser) => res.status(CREATED).send({
+      name: newUser.name,
+      about: newUser.about,
+      avatar: newUser.avatar,
+      email: newUser.email,
+    })))
+    .catch((err) => {
+      if (err.code === 11000) return next(new ConflictError('Такой пользователь уже существует '));
+      return next(err);
+    });
 };
 
 module.exports.updateUserInfo = (req, res, next) => {
@@ -69,7 +60,7 @@ module.exports.updateUserInfo = (req, res, next) => {
     { new: true, runValidators: true },
   )
     .then((user) => res.send(user))
-    .catch(() => next(new ServerError('Произошла ошибка сервера')));
+    .catch((err) => next(err));
 };
 
 module.exports.updateUserAvatar = (req, res, next) => {
@@ -80,7 +71,7 @@ module.exports.updateUserAvatar = (req, res, next) => {
     { new: true, runValidators: true },
   )
     .then((user) => res.send(user))
-    .catch(() => next(new ServerError('Произошла ошибка сервера')));
+    .catch((err) => next(err));
 };
 
 module.exports.login = (req, res, next) => {
@@ -97,5 +88,5 @@ module.exports.login = (req, res, next) => {
 
     res.send({ token });
   })
-    .catch((err) => next(new UnauthorizedError(err.message)));
+    .catch((err) => next(err));
 };

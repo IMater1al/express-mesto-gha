@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const { errors } = require('celebrate');
 const { errorHandler } = require('./errors/errorHandler');
 
+// Честно сказать с декораторами немного не понял, можете подробнее объяснить пожалуйста, спасибо)
+
 require('dotenv').config(); // насчет файла конфигурации у меня просто .env файл имеется, откуда переменные подтягиваются. Вы это имели в виду? Или как то по другому лучше?
 
 const { PORT = 3000, MONGO_URL = 'mongodb://127.0.0.1:27017/mydb' } = process.env;

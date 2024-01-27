@@ -86,7 +86,7 @@ module.exports.login = (req, res, next) => {
       sameSite: true,
     });
 
-    res.send({ token });
+    res.send({ message: 'Авторизация прошла успешно' });
   })
     .catch((err) => next(err));
 };
